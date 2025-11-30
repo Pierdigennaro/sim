@@ -1,137 +1,269 @@
-crea_partita <- function(giocatore1, giocatore2, giocatore3 = NULL, giocatore4 = NULL, ordine_casuale = TRUE) {
-  
-  # 1.1 Crea lista giocatori ----
-  giocatori <- list(giocatore1, giocatore2)
-  if (!is.null(giocatore3)) giocatori <- append(giocatori, list(giocatore3))
-  if (!is.null(giocatore4)) giocatori <- append(giocatori, list(giocatore4))
-  
-  if (ordine_casuale) giocatori <- sample(giocatori, replace = FALSE)
-  
-  # 1.2 Stato iniziale ----
-  turno_corrente = 1
-  gioco <- list(
-    giocatori = giocatori,
-    turno_corrente = 1,
-    indice_giocatore_attivo = ((turno_corrente-1) %% length(giocatori)+1),
-    fase_corrente = "inizio",
-    stato = "in_corso",
-    pila = list(),
-    campo_globale = list(),
-    ciclo_giorno_notte = "nessuno",
-    magie_lanciate_turno = 0,
-    magie_lanciate_giocatore_attivo_turno = 0,
-    magie_lanciate_giocatore_attivo_turno_precedente = 0,
-    fase_corrente=NULL,
-    log = list()
-  )
-  
-  # 1.3 Funzioni helper integrate ----
-  gioco$get_giocatore_attivo <- function() gioco$giocatori[[gioco$indice_giocatore_attivo]]
-  gioco$get_giocatori_non_attivi <- function() gioco$giocatori[-gioco$indice_giocatore_attivo]
-  gioco$conta_turno_giocatore_attivo <- function() (floor((gioco$turno_corrente - gioco$indice_giocatore_attivo) / length(gioco$giocatori)) + 1)
-  
-  # 1.4 Log di avvio ----
-  nomi <- sapply(giocatori, function(g) g$nome)
-  
-  messaggio <- paste("Inizia la partita tra:", paste(nomi, collapse = " vs "))
-  gioco <- aggiungi_log(gioco, messaggio, tipo = "inizio")
-  
-  invisible(gioco)
-}
-
 controlla_azioni_stato <- function(gioco) {
   repeat {
     azioni_applicate <- FALSE
     
-    # 1. Giocatori perdono se 0 o meno punti vita
+    ## 1. Giocatori perdono (vita, veleno, pesca da grimorio vuoto)
     for (g in seq_along(gioco$giocatori)) {
-      if (gioco$giocatori[[g]]$vita <= 0) {
-        nome <- gioco$giocatori[[g]]$nome
-        gioco <- aggiungi_log(gioco, paste0(nome, " ha 0 o meno punti vita e perde la partita."))
-        gioco$giocatori[[g]]$ha_perso <- TRUE
+      gioc <- gioco$giocatori[[g]]
+      
+      # se ha già perso, salto
+      if (isTRUE(gioc$ha_perso)) {
+        next
+      }
+      
+      # 1a. Vita <= 0
+      if (gioc$punti_vita <= 0) {
+        gioco <- aggiungi_log(
+          gioco,
+          paste0(gioc$nome, " ha 0 o meno punti vita e perde la partita.")
+        )
+        gioc$ha_perso <- TRUE
         azioni_applicate <- TRUE
       }
+      
+      # 1b. 10 o più segnalini veleno
+      if (!isTRUE(gioc$ha_perso) && !is.null(gioc$veleno) && gioc$veleno >= 10L) {
+        gioco <- aggiungi_log(
+          gioco,
+          paste0(gioc$nome, " ha 10 o più segnalini veleno e perde la partita.")
+        )
+        gioc$ha_perso <- TRUE
+        azioni_applicate <- TRUE
+      }
+      
+      # 1c. Ha tentato di pescare da grimorio vuoto (flag settato da pesca_carta)
+      if (!isTRUE(gioc$ha_perso) && isTRUE(gioc$ha_tentato_pescata_grimorio_vuoto)) {
+        gioco <- aggiungi_log(
+          gioco,
+          paste0(gioc$nome, " ha tentato di pescare da un grimorio vuoto e perde la partita.")
+        )
+        gioc$ha_perso <- TRUE
+        azioni_applicate <- TRUE
+      }
+      
+      # il flag va consumato ad ogni controllo SBA
+      gioc$ha_tentato_pescata_grimorio_vuoto <- FALSE
+      
+      gioco$giocatori[[g]] <- gioc
     }
     
-    # 2. Giocatori perdono se hanno pescato da grimorio vuoto
+    ## 2. Pedine o copie fuori dal campo cessano di esistere
+    # (tokens in qualsiasi zona diversa dal campo)
+    
+    # 2a. Zone personali (mano, cimitero, mazzo)
     for (g in seq_along(gioco$giocatori)) {
-      if (isTRUE(gioco$giocatori[[g]]$ha_pescato_da_mazzo_vuoto)) {
-        nome <- gioco$giocatori[[g]]$nome
-        gioco <- aggiungi_log(gioco, paste0(nome, " ha pescato da un grimorio vuoto e perde la partita."))
-        gioco$giocatori[[g]]$ha_perso <- TRUE
-        azioni_applicate <- TRUE
-      }
-    }
-    
-    # 3. Giocatori perdono con 10 o più segnalini veleno
-    for (g in seq_along(gioco$giocatori)) {
-      if (gioco$giocatori[[g]]$veleno >= 10) {
-        nome <- gioco$giocatori[[g]]$nome
-        gioco <- aggiungi_log(gioco, paste0(nome, " ha 10 o più segnalini veleno e perde la partita."))
-        gioco$giocatori[[g]]$ha_perso <- TRUE
-        azioni_applicate <- TRUE
-      }
-    }
-    
-    # 4. Pedine o copie fuori dal campo cessano di esistere
-    for (zona in c("mano", "cimitero", "esilio", "mazzo")) {
-      carte_fuori <- which(vapply(gioco[[zona]], function(carta) isTRUE(carta$token) || isTRUE(carta$copia), logical(1)))
-      if (length(carte_fuori) > 0) {
-        gioco[[zona]] <- gioco[[zona]][-carte_fuori]
-        azioni_applicate <- TRUE
-        gioco <- aggiungi_log(gioco, "Pedine o copie fuori dal campo cessano di esistere.")
-      }
-    }
-    
-    # 5. Creature con costituzione <= 0 muoiono
-    for (i in seq_along(gioco$campo)) {
-      carta <- gioco$campo[[i]]
-      if (carta$tipo == "creatura" && carta$costituzione <= 0) {
-        proprietario <- carta$proprietario
-        gioco <- aggiungi_log(gioco, paste0(carta$nome, " ha costituzione <= 0 e viene messa nel cimitero di ", proprietario, "."))
-        gioco <- sposta_carta(gioco, i, da = "campo", a = "cimitero", proprietario = proprietario)
-        azioni_applicate <- TRUE
-      }
-    }
-    
-    # 6. Creature con danno >= costituzione muoiono
-    for (i in seq_along(gioco$campo)) {
-      carta <- gioco$campo[[i]]
-      if (carta$tipo == "creatura" && carta$danno >= carta$costituzione) {
-        proprietario <- carta$proprietario
-        gioco <- aggiungi_log(gioco, paste0(carta$nome, " ha subito danno letale e viene distrutta."))
-        gioco <- sposta_carta(gioco, i, da = "campo", a = "cimitero", proprietario = proprietario)
-        azioni_applicate <- TRUE
-      }
-    }
-    
-    # 7. Planeswalker con fedeltà 0 muoiono
-    for (i in seq_along(gioco$campo)) {
-      carta <- gioco$campo[[i]]
-      if (carta$tipo == "planeswalker" && carta$fedelta <= 0) {
-        proprietario <- carta$proprietario
-        gioco <- aggiungi_log(gioco, paste0(carta$nome, " ha fedeltà 0 e viene messa nel cimitero di ", proprietario, "."))
-        gioco <- sposta_carta(gioco, i, da = "campo", a = "cimitero", proprietario = proprietario)
-        azioni_applicate <- TRUE
-      }
-    }
-    
-    # 8. Regola delle leggende (semplificata)
-    leggendari <- gioco$campo[vapply(gioco$campo, function(c) isTRUE(c$leggendario), logical(1))]
-    if (length(leggendari) > 1) {
-      nomi <- unique(vapply(leggendari, `[[`, "", "nome"))
-      for (nome in nomi) {
-        stesse <- which(vapply(gioco$campo, function(c) c$nome == nome && isTRUE(c$leggendario), logical(1)))
-        if (length(stesse) > 1) {
-          # Mantiene solo la prima
-          gioco <- aggiungi_log(gioco, paste0("Regola delle leggende: vengono mantenute solo una copia di ", nome, "."))
-          gioco$campo <- gioco$campo[-stesse[-1]]
-          azioni_applicate <- TRUE
+      for (zona in c("mano", "cimitero", "mazzo")) {
+        lista <- get_zona(gioco, zona, g)
+        if (!is.null(lista) && length(lista) > 0L) {
+          idx_rm <- which(vapply(
+            lista,
+            function(carta) isTRUE(carta$token) || isTRUE(carta$copia),
+            logical(1)
+          ))
+          
+          if (length(idx_rm) > 0L) {
+            lista[idx_rm] <- NULL
+            gioco <- set_zona(gioco, zona, lista, g)
+            azioni_applicate <- TRUE
+            
+            gioco <- aggiungi_log(
+              gioco,
+              paste0(
+                "Pedine o copie in zona ", zona,
+                " del giocatore ", gioco$giocatori[[g]]$nome,
+                " cessano di esistere (azione basata sullo stato)."
+              )
+            )
+          }
         }
       }
     }
     
-    # Fine del ciclo se nulla è stato applicato
+    # 2b. Zone globali (esilio e pila)
+    for (zona in c("esilio", "pila")) {
+      lista <- get_zona(gioco, zona)
+      if (!is.null(lista) && length(lista) > 0L) {
+        idx_rm <- which(vapply(
+          lista,
+          function(carta) isTRUE(carta$token) || isTRUE(carta$copia),
+          logical(1)
+        ))
+        
+        if (length(idx_rm) > 0L) {
+          lista[idx_rm] <- NULL
+          gioco <- set_zona(gioco, zona, lista)
+          azioni_applicate <- TRUE
+          
+          gioco <- aggiungi_log(
+            gioco,
+            paste0(
+              "Pedine o copie in zona ", zona,
+              " cessano di esistere (azione basata sullo stato)."
+            )
+          )
+        }
+      }
+    }
+    
+    ## 3. Permanenti sul campo: creature e planeswalker morti
+    da_spostare <- list()  # list(indice, owner_ref, motivo, descrizione)
+    
+    campo <- get_zona(gioco, "campo")
+    
+    if (!is.null(campo) && length(campo) > 0L) {
+      for (i in seq_along(campo)) {
+        carta <- campo[[i]]
+        if (is.null(carta)) next
+        
+        tipo_line      <- tolower(carta$tipo %||% "")
+        is_creatura    <- grepl("creatura", tipo_line)
+        is_planeswalker<- grepl("planeswalker", tipo_line)
+        
+        # Creature: costituzione <= 0
+        if (is_creatura && !is.null(carta$costituzione) && carta$costituzione <= 0) {
+          owner_ref <- carta$owner %||% carta$proprietario
+          da_spostare[[length(da_spostare) + 1L]] <- list(
+            indice    = i,
+            owner_ref = owner_ref,
+            motivo    = "costituzione_0",
+            descrizione = paste0(
+              carta$nome,
+              " ha costituzione <= 0 e viene messa nel cimitero di ",
+              owner_ref, "."
+            )
+          )
+          next
+        }
+        
+        # Creature: danno letale
+        if (is_creatura &&
+            !is.null(carta$costituzione) &&
+            !is.null(carta$danno) &&
+            carta$danno >= carta$costituzione) {
+          
+          owner_ref <- carta$owner %||% carta$proprietario
+          da_spostare[[length(da_spostare) + 1L]] <- list(
+            indice    = i,
+            owner_ref = owner_ref,
+            motivo    = "danno_letale",
+            descrizione = paste0(
+              carta$nome,
+              " ha subito danno letale ed è distrutta (messa nel cimitero di ",
+              owner_ref, ")."
+            )
+          )
+          next
+        }
+        
+        # Planeswalker: fedeltà 0
+        if (is_planeswalker && !is.null(carta$fedelta) && carta$fedelta <= 0) {
+          owner_ref <- carta$owner %||% carta$proprietario
+          da_spostare[[length(da_spostare) + 1L]] <- list(
+            indice    = i,
+            owner_ref = owner_ref,
+            motivo    = "fedelta_0",
+            descrizione = paste0(
+              carta$nome,
+              " ha fedeltà 0 e viene messa nel cimitero di ",
+              owner_ref, "."
+            )
+          )
+        }
+      }
+    }
+    
+    # Applico gli spostamenti dal campo al cimitero (indici in ordine decrescente)
+    if (length(da_spostare) > 0L) {
+      indici_unici <- unique(vapply(da_spostare, `[[`, integer(1), "indice"))
+      indici_unici <- sort(indici_unici, decreasing = TRUE)
+      
+      campo <- get_zona(gioco, "campo")  # rileggo per sicurezza
+      
+      for (idx in indici_unici) {
+        az <- da_spostare[[which(vapply(
+          da_spostare,
+          function(x) x$indice == idx,
+          logical(1)
+        ))[1L]]]
+        
+        gioco <- aggiungi_log(gioco, az$descrizione)
+        
+        gioco <- sposta_carta(
+          gioco,
+          da_zona      = "campo",
+          a_zona       = "cimitero",
+          indice_carta = idx,
+          da_giocatore = NULL,           # campo è globale
+          a_giocatore  = az$owner_ref    # id/nome del proprietario
+        )
+      }
+      
+      azioni_applicate <- TRUE
+    }
+    
+    ## 4. Regola delle leggende
+    campo <- get_zona(gioco, "campo")
+    
+    if (!is.null(campo) && length(campo) > 0L) {
+      idx_leggendari <- which(vapply(
+        campo,
+        function(c) isTRUE(c$leggendario) || isTRUE(c$leggendaria),
+        logical(1)
+      ))
+      
+      if (length(idx_leggendari) > 0L) {
+        chiave <- vapply(
+          idx_leggendari,
+          function(i) {
+            c <- campo[[i]]
+            ctrl <- c$controller %||% c$owner %||% c$proprietario
+            paste(ctrl, c$nome, sep = "||")
+          },
+          character(1)
+        )
+        
+        gruppi <- split(idx_leggendari, chiave)
+        
+        for (k in names(gruppi)) {
+          indici <- gruppi[[k]]
+          if (length(indici) > 1L) {
+            # Mantengo la prima (in futuro: scelta del giocatore / AI)
+            indici_da_sacrificare <- sort(indici, decreasing = TRUE)[-1L]
+            
+            for (idx in indici_da_sacrificare) {
+              carta     <- campo[[idx]]
+              owner_ref <- carta$owner %||% carta$proprietario
+              ctrl_ref  <- carta$controller %||% owner_ref
+              
+              gioco <- aggiungi_log(
+                gioco,
+                paste0(
+                  "Regola delle leggende: ",
+                  carta$nome,
+                  " in eccesso controllata da ",
+                  ctrl_ref,
+                  " viene messa nel cimitero di ",
+                  owner_ref, "."
+                )
+              )
+              
+              gioco <- sposta_carta(
+                gioco,
+                da_zona      = "campo",
+                a_zona       = "cimitero",
+                indice_carta = idx,
+                da_giocatore = NULL,
+                a_giocatore  = owner_ref
+              )
+            }
+            
+            azioni_applicate <- TRUE
+          }
+        }
+      }
+    }
+    
+    ## Fine ciclo: se nessuna SBA è stata applicata, si termina
     if (!azioni_applicate) break
   }
   

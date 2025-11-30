@@ -1,4 +1,4 @@
-gestisci_inneschi_acquisizione <- function(gioco) {
+gestisci_inneschi_draw <- function(gioco) {
   # Trova le carte nel campo con abilità "trigger_draw"
   inneschi <- list()
   for (i in seq_along(gioco$campo)) {

@@ -10,7 +10,7 @@ phase_in_giocatoreattivo <- function(gioco) {
     }
   }
   # Sincronizza i campi dei giocatori
-  gioco <- aggiorna_campi_giocatori(gioco)
+#  gioco <- aggiorna_campi_giocatori(gioco)
   # Aggiungi un messaggio al log
   if(isTRUE(temp)){
     messaggio <- paste0(gioco$get_giocatore_attivo()$nome, " phase-in tutte le sue carte.")
@@ -53,7 +53,7 @@ stappa_giocatoreattivo <- function(gioco) {
     })
   }
   # Sincronizza i campi dei giocatori
-  gioco <- aggiorna_campi_giocatori(gioco)
+#  gioco <- aggiorna_campi_giocatori(gioco)
   # Aggiungi un messaggio al log
   messaggio <- paste0(gioco$get_giocatore_attivo()$nome, " stappa tutte le sue carte.")
   gioco$log <- append(gioco$log, messaggio)

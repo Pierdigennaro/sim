@@ -116,20 +116,24 @@ crea_mazzo_test_burn <- function() {
 # ============================
 
 crea_giocatori_test <- function() {
-  mazzo_elfi  <- crea_mazzo_test_elfi()
-  mazzo_burn  <- crea_mazzo_test_burn()
+  mazzo_elfi <- crea_mazzo_test_elfi()
+  mazzo_burn <- crea_mazzo_test_burn()
   
   player1 <- crea_giocatore(
     mazzo      = mazzo_elfi,
-    comandante = NULL,   # se vuoi, puoi passare elfo come comandante
+    formato    = "standard",
+    comandante = NULL,
     nome       = "Pippo - Elfi"
   )
+  player1 <- inizializza_giocatore_in_partita(player1, n_carte_iniziali = 7L)
   
   player2 <- crea_giocatore(
     mazzo      = mazzo_burn,
+    formato    = "standard",
     comandante = NULL,
     nome       = "Mario - Burn"
   )
+  player2 <- inizializza_giocatore_in_partita(player2, n_carte_iniziali = 7L)
   
   list(
     p1 = player1,
@@ -172,7 +176,7 @@ gioca_partita_test <- function(max_turni = 20,
     if (verbose) cat("\n----- Turno", turno, "-----\n")
     
     # Assumo che tu abbia una funzione esegui_turno(gioco, verbose = TRUE/FALSE)
-    gioco <- esegui_turno(gioco, verbose = verbose)
+    gioco <- esegui_turno(gioco)
     
     # Assumo che 'gioco$vincitore' diventi non-NULL quando qualcuno vince
     if (!is.null(gioco$vincitore)) {

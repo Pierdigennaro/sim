@@ -3,7 +3,7 @@ fase_iniziale <- function(gioco) {
   gioco <- aggiungi_log(gioco, messaggio, tipo = "fase")
   gioco <- sottofase_untap(gioco)
   gioco <- sottofase_upkeep(gioco)
-  gioco <- sottofase_pesca(gioco)
+  gioco <- sottofase_draw(gioco)
   return(gioco)
 }
 
@@ -47,7 +47,7 @@ sottofase_draw <- function(gioco) {
   gioco <- controlla_azioni_stato(gioco)
   
   # 3. Il giocatore attivo pesca una carta
-  gioco <- pesca_carta(gioco, gioco$giocatore_attivo)
+  gioco <- pesca_carta(gioco, gioco$indice_giocatore_attivo)
   
   # 4. Controllo di stato dopo la pescata
   gioco <- controlla_azioni_stato(gioco)

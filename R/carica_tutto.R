@@ -8,7 +8,7 @@ carica_tutto <- function(path = "R") {
   
   # opzionale: ordino i file per avere un ordine stabile
   files <- sort(files)
-  files <- files[!grepl("/(play_)", files)]
+  files <- files[!grepl("/(play_)", files)&!grepl("/(run_)", files)]
   
   for (f in files) {
     message("Sourcing: ", f)

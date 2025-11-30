@@ -43,6 +43,7 @@ trova_indice_giocatore <- function(gioco, ref) {
   stop("trova_indice_giocatore: nessun giocatore trovato per ref = ", ref)
 }
 
+# Restituisce il giocatore attivo
 get_giocatore_attivo <- function(gioco) {
   gioco$giocatori[[gioco$indice_giocatore_attivo]]
 }

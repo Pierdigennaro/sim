@@ -1,38 +1,71 @@
-gioca_partita <- function(gioco, max_turni = 200) {
-  
-  messaggio <- paste("=== INIZIO PARTITA ===")
-  gioco <- aggiungi_log(gioco, messaggio, tipo = "inizio")
-  
-  while (gioco$stato == "in_corso" && gioco$turno_corrente <= max_turni) {
-    
-    g_attivo <- gioco$get_giocatore_attivo()
-    messaggio <- paste("---- Turno", gioco$turno_corrente, ":", g_attivo$nome, ", Turno ",  (floor((gioco$turno_corrente - gioco$indice_giocatore_attivo) / length(gioco$giocatori)) + 1))
-    gioco <- aggiungi_log(gioco, messaggio, tipo = NULL)
-    
-    # 2.1 Turno completo ----
-    gioco <- esegui_turno(gioco)
-    
-    # 2.2 Controllo condizioni di vittoria ----
-    gioco <- controlla_vittoria(gioco)
-    
-    # 2.3 Passaggio turno ----
-    if (gioco$stato == "in_corso") {
-      gioco$indice_giocatore_attivo <- (gioco$indice_giocatore_attivo %% length(gioco$giocatori)) + 1
-      gioco$turno_corrente <- gioco$turno_corrente + 1
-    }
+# Funzione principale: esegue l’intera partita
+gioca_partita <- function(gioco, max_turni = 200, verbose = TRUE) {
+  # Se lo stato non è impostato, lo inizializzo
+  if (is.null(gioco$stato)) {
+    gioco$stato <- "in_corso"
+  }
+  if (is.null(gioco$turno_corrente)) {
+    gioco$turno_corrente <- 1L
+  }
+  if (is.null(gioco$indice_giocatore_attivo)) {
+    gioco$indice_giocatore_attivo <- 1L
   }
   
-  messaggio <- paste("=== FINE PARTITA ===")
-  gioco <- aggiungi_log(gioco, messaggio, tipo = "fine")
+  msg_start <- "=== INIZIO PARTITA ==="
+  gioco <- aggiungi_log(gioco, msg_start, tipo = "partita")
+  if (verbose) cat(msg_start, "\n")
+  
+  # Loop principale di partita
+  while (identical(gioco$stato, "in_corso") &&
+         gioco$turno_corrente <= max_turni) {
+    
+    # Esegui un turno completo del giocatore attivo
+    gioco <- esegui_turno(gioco, verbose = verbose)
+    
+    # Dopo ogni turno: controlla azioni di stato e condizioni di vittoria
+    gioco <- controlla_azioni_stato(gioco)
+    gioco <- controlla_vittoria(gioco)
+    
+    # Se la partita è finita, esci dal loop
+    if (!identical(gioco$stato, "in_corso")) break
+  }
+  
+  # Se sono finiti i turni senza vincitore → pareggio tecnico
+  if (identical(gioco$stato, "in_corso") &&
+      gioco$turno_corrente > max_turni) {
+    gioco$stato <- "pareggio"
+    gioco$motivazione_fine <- paste(
+      "Raggiunto il limite di", max_turni, "turni."
+    )
+    gioco <- aggiungi_log(
+      gioco,
+      paste0("La partita termina in pareggio (limite di ",
+             max_turni, " turni)."),
+      tipo = "fine_partita"
+    )
+  }
+  
+  msg_end <- "=== FINE PARTITA ==="
+  gioco <- aggiungi_log(gioco, msg_end, tipo = "fine_partita")
+  if (verbose) cat(msg_end, "\n")
+  
   return(gioco)
 }
 
-esegui_turno <- function(gioco, verbose = FALSE) {
-  # Giocatore attivo all'inizio del turno
-  giocatore_attivo <- get_giocatore_attivo(gioco)
-  nome_giocatore   <- giocatore_attivo$nome
+esegui_turno <- function(gioco, verbose = TRUE) {
+  # Recupero giocatore attivo: preferisco usare la closure se esiste,
+  # altrimenti accedo direttamente alla lista.
+  g_attivo <- if (is.function(gioco$get_giocatore_attivo)) {
+    gioco$get_giocatore_attivo()
+  } else {
+    gioco$giocatori[[gioco$indice_giocatore_attivo]]
+  }
   
-  # Log inizio turno
+  nome_giocatore <- g_attivo$nome
+  if (is.null(nome_giocatore)) {
+    nome_giocatore <- paste0("Giocatore_", gioco$indice_giocatore_attivo)
+  }
+  
   msg_start <- paste(
     "───────────────",
     paste("INIZIO TURNO DI", nome_giocatore),
@@ -42,35 +75,32 @@ esegui_turno <- function(gioco, verbose = FALSE) {
   gioco <- aggiungi_log(gioco, msg_start, tipo = "inizio_turno")
   if (verbose) cat(msg_start, "\n")
   
-  # Reset variabili dipendenti dal turno
+  # Resetta i contatori di turno del giocatore attivo
   gioco <- reset_variabili_turno(gioco)
   
-  # === Fase iniziale (STAP, mantenimento, pescata) ===
+  # Fasi del turno (in ordine CR):
+  # 1) Fase iniziale (stap / mantenimento / pescata)
   gioco <- fase_iniziale(gioco)
-  gioco <- controlla_azioni_stato(gioco)
   
-  # === Prima fase principale ===
-  # ATTENZIONE al nome: assicurati di avere la funzione
-  # 'fase_principale_1' (o fai un alias se si chiama 'fase_principale_1')
+  # 2) Prima fase principale
+  #    (nel codice delle fasi il nome è fase_principale_1)
   gioco <- fase_principale_1(gioco)
-  gioco <- controlla_azioni_stato(gioco)
   
-  # === Combattimento ===
+  # 3) Fase di combattimento
   gioco <- fase_combattimento(gioco)
-  gioco <- controlla_azioni_stato(gioco)
   
-  # === Seconda fase principale ===
+  # 4) Seconda fase principale
   gioco <- fase_principale2(gioco)
-  gioco <- controlla_azioni_stato(gioco)
   
-  # === Fase finale (end step + cleanup) ===
+  # 5) Fase finale (end step + cleanup)
   gioco <- fase_finale(gioco)
+  
+  # Un ultimo controllo SBA a fine turno
   gioco <- controlla_azioni_stato(gioco)
   
-  # Passa al prossimo giocatore / turno
+  # Passa al prossimo giocatore / incrementa il numero di turno
   gioco <- passa_al_prossimo_giocatore(gioco)
   
-  # Log fine turno (del giocatore che ha appena giocato)
   msg_end <- paste(
     "───────────────",
     paste("FINE TURNO DI", nome_giocatore),
@@ -79,6 +109,67 @@ esegui_turno <- function(gioco, verbose = FALSE) {
   )
   gioco <- aggiungi_log(gioco, msg_end, tipo = "fine_turno")
   if (verbose) cat(msg_end, "\n")
+  
+  return(gioco)
+}
+
+controlla_vittoria <- function(gioco) {
+  # Mi aspetto che controlla_azioni_stato abbia già settato $ha_perso
+  # dove serve (vita <=0, grimorio vuoto, ecc.)
+  ha_perso <- vapply(
+    gioco$giocatori,
+    function(g) isTRUE(g$ha_perso),
+    logical(1)
+  )
+  
+  n_in_gioco <- sum(!ha_perso)
+  
+  # Nessuno ha perso → partita ancora in corso
+  if (n_in_gioco ==  length(gioco$giocatori)) {
+    return(gioco)
+  }
+  
+  # Tutti hanno perso → pareggio
+  if (n_in_gioco == 0L) {
+    gioco$stato <- "pareggio"
+    gioco$motivazione_fine <- "Tutti i giocatori hanno perso (SBA)."
+    
+    gioco <- aggiungi_log(
+      gioco,
+      "Tutti i giocatori hanno perso: la partita termina in pareggio.",
+      tipo = "fine_partita"
+    )
+    return(gioco)
+  }
+  
+  # Esattamente un giocatore non ha perso → abbiamo un vincitore
+  if (n_in_gioco == 1L) {
+    idx_vincitore <- which(!ha_perso)
+    vincitore <- gioco$giocatori[[idx_vincitore]]
+    
+    gioco$stato <- "finita"
+    gioco$vincitore_indice <- idx_vincitore
+    gioco$vincitore_nome   <- vincitore$nome
+    
+    gioco <- aggiungi_log(
+      gioco,
+      paste0("La partita termina: vince ", vincitore$nome, "."),
+      tipo = "fine_partita"
+    )
+    
+    return(gioco)
+  }
+  
+  # Caso intermedio: >1 giocatore in vita e almeno 1 con ha_perso==TRUE
+  # (es. in multiplayer, qualcuno è stato eliminato ma la partita continua)
+  # In questo caso non chiudo la partita, mi limito a loggare.
+  if (n_in_gioco >= 2L && n_in_gioco < length(gioco$giocatori)) {
+    msg <- paste(
+      "Alcuni giocatori sono stati eliminati, ma la partita continua con",
+      n_in_gioco, "giocatori ancora in gioco."
+    )
+    gioco <- aggiungi_log(gioco, msg, tipo = "info")
+  }
   
   return(gioco)
 }

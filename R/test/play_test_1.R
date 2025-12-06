@@ -177,7 +177,7 @@ gioca_partita_test <- function(max_turni = 20,
     gioco <- esegui_turno(gioco)
     
     # Dopo il turno, per sicurezza, riallineo SBA
-    gioco <- controlla_azioni_stato(gioco)
+    gioco <- controllo_azioni_stato(gioco)
     
     # Controllo se qualcuno ha perso (usando ha_perso)
     stati_persi <- vapply(

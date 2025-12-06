@@ -25,7 +25,7 @@ sottofase_upkeep <- function(gioco) {
   # 1. Metti in pila tutte le abilità innescate durante la sottofase di STAP o all’inizio dell’upkeep
   gioco <- gestisci_inneschi_upkeep(gioco)
   
-  controlla_azioni_stato(gioco)
+  controllo_azioni_stato(gioco)
   
   # 2. Il giocatore attivo ottiene priorità
   gioco <- assegna_priorita_giocatore_attivo(gioco)
@@ -44,13 +44,13 @@ sottofase_draw <- function(gioco) {
   gioco <- gestisci_inneschi_draw(gioco)
   
   # 2. Controllo delle azioni generate dallo stato
-  gioco <- controlla_azioni_stato(gioco)
+  gioco <- controllo_azioni_stato(gioco)
   
   # 3. Il giocatore attivo pesca una carta
   gioco <- pesca_carta(gioco, gioco$indice_giocatore_attivo)
   
   # 4. Controllo di stato dopo la pescata
-  gioco <- controlla_azioni_stato(gioco)
+  gioco <- controllo_azioni_stato(gioco)
   
   # 5. Inneschi legati alla pescata
   gioco <- gestisci_inneschi_pescata(gioco)

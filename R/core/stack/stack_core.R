@@ -316,7 +316,7 @@ resolve_top_of_stack <- function(gioco) {
     gioco <- gestisci_post_risoluzione_zona(gioco, obj, countered = TRUE)
     
     # Azioni basate sullo stato dopo la “non-risoluzione”
-    gioco <- controlla_azioni_stato(gioco)
+    gioco <- controllo_azioni_stato(gioco)
     # TODO: inneschi post-SBA, se usi eventi
     return(gioco)
   }
@@ -328,7 +328,7 @@ resolve_top_of_stack <- function(gioco) {
   gioco <- gestisci_post_risoluzione_zona(gioco, obj, countered = FALSE)
   
   # 4) Azioni basate sullo stato post-risoluzione
-  gioco <- controlla_azioni_stato(gioco)
+  gioco <- controllo_azioni_stato(gioco)
   # TODO: gestisci_inneschi_da_eventi(gioco) quando avrai il sistema di eventi
   
   return(gioco)

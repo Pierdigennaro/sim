@@ -69,7 +69,7 @@ test_sba_danno_letale <- function() {
   gioco <- set_zona(gioco, "campo", campo)
   
   # Applico SBA
-  gioco <- controlla_azioni_stato(gioco)
+  gioco <- controllo_azioni_stato(gioco)
   
   campo2 <- get_zona(gioco, "campo")
   cim1   <- get_zona(gioco, "cimitero", 1)

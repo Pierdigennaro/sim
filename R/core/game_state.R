@@ -1,4 +1,4 @@
-controlla_azioni_stato <- function(gioco) {
+controllo_azioni_stato <- function(gioco) {
   repeat {
     azioni_applicate <- FALSE
     

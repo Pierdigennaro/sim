@@ -23,7 +23,7 @@ gioca_partita <- function(gioco, max_turni = 200, verbose = TRUE) {
     gioco <- esegui_turno(gioco, verbose = verbose)
     
     # Dopo ogni turno: controlla azioni di stato e condizioni di vittoria
-    gioco <- controlla_azioni_stato(gioco)
+    gioco <- controllo_azioni_stato(gioco)
     gioco <- controlla_vittoria(gioco)
     
     # Se la partita è finita, esci dal loop
@@ -96,7 +96,7 @@ esegui_turno <- function(gioco, verbose = TRUE) {
   gioco <- fase_finale(gioco)
   
   # Un ultimo controllo SBA a fine turno
-  gioco <- controlla_azioni_stato(gioco)
+  gioco <- controllo_azioni_stato(gioco)
   
   # Passa al prossimo giocatore / incrementa il numero di turno
   gioco <- passa_al_prossimo_giocatore(gioco)
@@ -114,7 +114,7 @@ esegui_turno <- function(gioco, verbose = TRUE) {
 }
 
 controlla_vittoria <- function(gioco) {
-  # Mi aspetto che controlla_azioni_stato abbia già settato $ha_perso
+  # Mi aspetto che controllo_azioni_stato abbia già settato $ha_perso
   # dove serve (vita <=0, grimorio vuoto, ecc.)
   ha_perso <- vapply(
     gioco$giocatori,

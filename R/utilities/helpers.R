@@ -74,15 +74,6 @@ aggiungi_carta <- function(giocatore, carta, posizione="in_fondo") {
   return(giocatore)
 }
 
-assegna_priorita_giocatore_attivo <- function(gioco) {
-  giocatore <- gioco$get_giocatore_attivo()
-  gioco <- aggiungi_log(gioco, paste0("Il giocatore ", giocatore$nome, " ottiene priorità."))
-  
-  # Placeholder: eventuale IA o input giocatore
-  # gioco <- gestisci_azioni_priorita(gioco, giocatore)
-  
-  return(gioco)
-}
 
 gestisci_inneschi_pescata <- function(gioco, indice_giocatore, carta_pescata) {
   giocatore <- gioco$giocatori[[indice_giocatore]]
@@ -126,7 +117,7 @@ pesca_carta <- function(gioco, indice_giocatore, n = 1, motivo = "generico") {
       )
       
       # Flag sul giocatore: ha tentato di pescare da grimorio vuoto.
-      # Sarà controlla_azioni_stato() a trasformarlo in "perdi la partita".
+      # Sarà controllo_azioni_stato() a trasformarlo in "perdi la partita".
       giocatore$ha_tentato_pescata_grimorio_vuoto <- TRUE
       
       # Stoppo ulteriori pescate richieste da questa chiamata

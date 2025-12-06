@@ -21,7 +21,7 @@ sottofase_inizio_combattimento <- function(gioco) {
   return(gioco)
 }
 
-### 4.3.2 Dichiarazione Attaccanti ----
+### 4.3.2 Dichiarazione Attaccanti --
 sottofase_dichiarazione_attaccanti <- function(gioco) {
   messaggio <- "Sottofase di dichiarazione delle creature attaccanti"
   gioco <- aggiungi_log(gioco, messaggio, tipo = "sottofase")
@@ -39,7 +39,7 @@ sottofase_dichiarazione_attaccanti <- function(gioco) {
   return(gioco)
 }
 
-### 4.3.2 Dichiarazione Bloccanti ----
+### 4.3.2 Dichiarazione Bloccanti -
 sottofase_dichiarazione_bloccanti <- function(gioco) {
   messaggio <- "Sottofase di dichiarazione dei bloccanti"
   gioco <- aggiungi_log(gioco, messaggio, tipo = "sottofase")
@@ -56,7 +56,7 @@ sottofase_dichiarazione_bloccanti <- function(gioco) {
   return(gioco)
 }
 
-### 4.3.3 Danno da Combattimento ----
+### 4.3.3 Danno da Combattimento -
 sottofase_danno_combattimento <- function(gioco) {
   gioco <- aggiungi_log(gioco, "Sottofase di danno da combattimento", tipo = "sottofase")
   
@@ -74,12 +74,12 @@ sottofase_danno_combattimento <- function(gioco) {
   
   # 5) Trigger vari e priorità
   gioco <- abilita_post_danno(gioco)
-  gioco <- assegna_priorita(gioco, gioco$giocatore_attivo)
+  gioco <- assegna_priorita_giocatore_attivo(gioco)
   
   return(gioco)
 }
 
-### 4.3.4 Fine Combattimento ----
+### 4.3.4 Fine Combattimento -
 sottofase_fine_combattimento <- function(gioco) {
   gioco <- aggiungi_log(gioco, "Fine combattimento")
   gioco <- gestisci_inneschi_fine_combattimento(gioco)

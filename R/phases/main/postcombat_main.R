@@ -1,4 +1,4 @@
-fase_principale2 <- function(gioco) {
+fase_principale_2 <- function(gioco) {
   gioco <- aggiungi_log(gioco, "=== Seconda Fase Principale ===", tipo = "fase")
   
   # 1. Controllo stati immediato
@@ -15,8 +15,6 @@ fase_principale2 <- function(gioco) {
   # - interazioni pila
   
   # 4. Quando il giocatore passa la priorità e nessuno risponde,
-  #    si avanza alla fase finale
-  gioco <- passa_alla_fase_successiva(gioco)
-  
+
   return(gioco)
 }
